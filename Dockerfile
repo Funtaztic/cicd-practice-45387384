@@ -5,7 +5,7 @@ FROM python:3.9-slim
 WORKDIR /app
 
 # Copy our python file from your laptop into the container
-COPY app.py .
+COPY . .
 
 # The command to run when the container starts
 CMD ["python", "app.py"]
