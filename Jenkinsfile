@@ -2,31 +2,36 @@ pipeline {
     agent any
 
     stages {
-        // Step 1: Just checking if we can build the container
         stage('Build') {
             steps {
                 echo 'Building the Docker image...'
-                // This is the command you ran manually earlier
-                sh 'docker build -t my-python-app .'
+                // I renamed the image to 'my-flask-app' to match your manual test
+                sh 'docker build -t my-flask-app .'
             }
         }
 
-        // Step 2: Now we run the tests inside the container
         stage('Test') {
             steps {
                 echo 'Running Unit Tests...'
-                // Here is a cool trick: We use the image we just built to run the tests!
-                // We overwrite the default command to run the test file instead of app.py
-                sh 'docker run --rm my-python-app python test_app.py' 
+                // We test the image we just built
+                sh 'docker run --rm my-flask-app python test_app.py' 
             }
         }
         
-        // We aren't really "Deploying" to a server yet, 
-        // but let's add the step so you see the structure.
         stage('Deploy') {
             steps {
                 echo 'Deploying application...'
-                echo 'Application deployed successfully!'
+                
+                // 1. CLEANUP: Stop and remove any old container named 'prod-website'
+                // The '|| true' part means "If you don't find one, don't crash, just keep going"
+                sh 'docker stop prod-website || true'
+                sh 'docker rm prod-website || true'
+                
+                // 2. LAUNCH: Run the new container
+                // -d : Detached mode (run in background, don't block Jenkins)
+                // -p : Map port 5000 so you can see it
+                // --name : We name it 'prod-website' so we can easily find/kill it next time
+                sh 'docker run -d -p 5000:5000 --name prod-website my-flask-app'
             }
         }
     }
