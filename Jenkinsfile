@@ -5,6 +5,10 @@ pipeline {
         stage('Deploy') {
             steps {
                 echo 'Deploying Multi-Container Stack...'
+		
+		// Just stopping the old, running website to make sure the port is free to use.
+		sh 'docker stop prod-website || true'
+			
                 // 1. Shut down any old version
                 sh 'docker compose down || true'
                 
