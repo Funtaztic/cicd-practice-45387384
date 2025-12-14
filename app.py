@@ -1,35 +1,72 @@
-from flask import Flask
+import os
+import psycopg2
+from flask import Flask, request, render_template_string
 
-# 1. Create the web application
 app = Flask(__name__)
 
-# 2. Keep our logic function (So our unit tests don't break!)
-def add(a, b):
-    return a + b
+# Get DB info from the Docker Compose environment variables
+DB_URL = os.environ.get('DATABASE_URL')
 
-# 3. Create the "Home Page" route
-@app.route("/")
+def get_db_connection():
+    conn = psycopg2.connect(DB_URL)
+    return conn
+
+def init_db():
+    """Create the table if it doesn't exist."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('CREATE TABLE IF NOT EXISTS messages (content TEXT);')
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"DB Error: {e}")
+
+# Run this once on startup
+if DB_URL:
+    init_db()
+
+@app.route('/', methods=['GET', 'POST'])
 def home():
+    if request.method == 'POST':
+        # Save data from the box
+        content = request.form['content']
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('INSERT INTO messages (content) VALUES (%s)', (content,))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+    # Get all data to display
+    messages = []
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('SELECT content FROM messages;')
+        messages = [row[0] for row in cur.fetchall()]
+        cur.close()
+        conn.close()
+    except:
+        pass
+
     return """
     <html>
-        <head>
-            <style>
-                body { font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f0f0f0; }
-                h1 { color: #333; }
-                .box { border: 2px solid #333; padding: 20px; display: inline-block; background-color: white; }
-            </style>
-        </head>
         <body>
-            <div class="box">
-                <h1>Hello from Jenkins! 🎩</h1>
-                <p>This website was deployed automatically.</p>
-                <p>By the way, 2 + 2 is still <b>""" + str(add(2, 2)) + """</b></p>
-            </div>
+            <h1>Multi-Container App! 📦 + 📦</h1>
+            <form method="POST">
+                <input type="text" name="content" placeholder="Type something...">
+                <input type="submit" value="Save to DB">
+            </form>
+            <hr>
+            <h3>Saved Messages:</h3>
+            <ul>
+                """ + "".join([f"<li>{msg}</li>" for msg in messages]) + """
+            </ul>
         </body>
     </html>
     """
 
-# 4. Run the web server if this file is executed
 if __name__ == "__main__":
-    # host='0.0.0.0' is vital for Docker to let us see it from outside
     app.run(host='0.0.0.0', port=5000)
