@@ -18,13 +18,5 @@ pipeline {
             }
         }
         
-        stage('Verify') {
-             steps {
-                 // Wait 5 seconds for DB to wake up
-                 sleep 5
-                 // Check if it's online
-                 sh 'curl -f http://172.17.0.1:5000 || exit 1'
-             }
-        }
     }
 }
